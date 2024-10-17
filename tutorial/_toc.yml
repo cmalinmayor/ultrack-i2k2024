@@ -4,5 +4,5 @@
 format: jb-book
 root: index
 chapters:
-- file: installation.md
-- file: multicolor_tracking.md
+  - file: installation.md
+  - file: tracking.md
