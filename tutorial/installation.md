@@ -9,8 +9,9 @@ we will try to help you get unstuck.
 
 In this tutorial, we will install Python via miniforge, a distribution of
 Python based in the [conda package manager](https://docs.conda.io/en/latest/).
+
 If you already have anaconda, miniconda, or miniforge installed, those will work
-as well and you can skip to the next section.
+as well and you can skip to the bottom of this page to set up the conda environment.
 
 1. In your web browser, navigate to the
    [miniforge page](https://github.com/conda-forge/miniforge). 
