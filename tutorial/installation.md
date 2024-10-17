@@ -1,15 +1,8 @@
 # Python setup & napari installation
 
 ```{tip}
-If you have any issues with installation, please feel free to write us a message
-on the
-[napari zulip](https://napari.zulipchat.com/#narrow/stream/212875-general) and
+If you have any issues with installation, please feel free to [open a github issue](https://github.com/royerlab/ultrack-i2k2024/issues/new) and
 we will try to help you get unstuck.
-```
-
-```{note}
-Make sure you review the instructions below and verify that they are still
-correct before using them in your workshop.
 ```
 
 ## Installing Python using conda
@@ -90,44 +83,40 @@ as well and you can skip to the next section.
             ```
 
 ## Setting up your environment
+
 1. Open your terminal.
    - **Windows**: Open the "miniforge prompt" from your start menu
    - **Mac OS**: Open Terminal (you can search for it in spotlight - `cmd` +
      `space`)
    - **Linux**: Open your terminal application
+
 2. We use an environment to encapsulate the Python tools used for this workshop.
    This ensures that the requirements for this workshop do not interfere with
-   your other Python projects. To create the environment (named
-   `napari-workshop`) and install Python 3.11 and napari in it, enter the following command:
+   your other Python projects. To create the environment with tutorial's dependencies
+   (Python 3.12, ultrack, napari and other) in it, enter the following command:
 
     ```bash
-    conda create -n napari-workshop -c conda-forge python=3.11 napari pyqt jupyterlab
+    conda env create --file environment.yml
     ```
 
 3. Once the environment setup has finished, activate the environment:
 
     ```bash
-    conda activate napari-workshop
+    conda activate ultrack-i2k2024
     ```
 
     If you successfully activated the environment, you should now see
-   `(napari-workshop)` to the left of your command prompt.
+   `(ultrack-i2k2024` to the left of your command prompt.
 
 4. Install the additional workshop dependencies with the commands below.  
 
    For the plugin template:
 
     ```bash
-    conda install -c conda-forge cookiecutter 
+    pip install -r requirements.txt
     ```
 
-   For the `stardist` plugin:
-
-    ```bash
-    conda install -c conda-forge stardist-napari
-    ```
-
-6. Test that your notebook installation is working. We will be using notebooks
+5. Test that your notebook installation is working. We will be using notebooks
    for interactive analysis. Enter the command below and it should launch the
    `jupyter lab` application in a web browser. Once you've confirmed it
    launches, close the web browser and press `ctrl+c` in the terminal window to
@@ -137,18 +126,10 @@ as well and you can skip to the next section.
     jupyter lab
     ```
 
-7. Test your napari installation. Enter the command below and an empty napari
+6. Test your napari installation. Enter the command below and an empty napari
    viewer should open. You can close the window after it opens. Please note that
    it takes a bit of extra time to launch napari the first time.
     
     ```bash
     napari
     ```
-
-````{admonition} Errors launching?
-If you have any issues with installation or launching napari, please feel free to write us a message
-on the
-[napari zulip](https://napari.zulipchat.com/#narrow/stream/212875-general) and
-we will try to help you get unstuck.
-
-````
