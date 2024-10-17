@@ -23,4 +23,5 @@ dependencies:
   - pip:
     - py-ctcmetrics
     - napari
-    - ultrack
+    - git+https://github.com/royerlab/ultrack
+    - napari-plot-profile

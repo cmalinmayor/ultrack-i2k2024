@@ -4,7 +4,7 @@ jupytext:
   text_representation:
     extension: .md
     format_name: myst
-    format_version: 1.0.4
+    format_version: 0.13
     jupytext_version: 1.16.4
 kernelspec:
   display_name: Python 3 (ipykernel)
@@ -14,9 +14,11 @@ kernelspec:
 
 # 2D cell tracking with multiple hypotheses
 
++++
+
 This tutorial shows Ultrack's multiple hypotheses tracking capabilities. 
 
-Here, rather than searching for an optimal segmentation parameter, we sampled multiple segmentations with different parametrizations and used Ultrack to find the best segments, obtaining more accurate cell tracking.
+We will start with a simple classical image processing solution with ultrack and tracking cells for image intensities directly. Then, we will progress to using Cellpose and finally use multiple Cellpose segmentations to improve tracking performance without training our own segmentation model showcasing the improvement when a single segmentation isn't good enough.
 
 ## Download data
 
@@ -24,8 +26,7 @@ Download the Fluo-C2DL-Huh7 dataset from the [Cell Tracking Challenge](celltrack
 
 The dataset will be used for demonstrating the segmentation and tracking workflow.
 
-
-```{code-cell} python
+```{code-cell} ipython3
 :tags: [remove-output]
 
 !wget -nc http://data.celltrackingchallenge.net/training-datasets/Fluo-C2DL-Huh7.zip

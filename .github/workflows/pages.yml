@@ -20,6 +20,9 @@ concurrency:
   group: "pages"
   cancel-in-progress: true
 
+env:
+  TQDM_DISABLE: 1
+
 jobs:
   # Single deploy job since we're just deploying
   deploy:
@@ -43,7 +46,7 @@ jobs:
         with:
           run: |
             pip install -r requirements.txt
-            export TQDM_DISABLE=1; jupyter book build tutorial
+            jupyter book build tutorial
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

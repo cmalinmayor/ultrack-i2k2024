@@ -6,4 +6,4 @@ napari-animation
 matplotlib
 py-ctcmetrics
 cellpose
-ultrack
+git+https://github.com/royerlab/ultrack
