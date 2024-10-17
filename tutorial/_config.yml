@@ -1,9 +1,13 @@
 # Book settings
 # Learn more at https://jupyterbook.org/customize/config.html
 
-title: napari workshop template
-author: napari core developers
-logo: logo.ico
+title: ultrack 2024 i2k tutorial
+author: Jordao Bragantini
+logo: logo.png
+
+theme:
+  toggle:
+    default: "light"
 
 # Only build files in the table of contents.
 only_build_toc_files: true
@@ -15,6 +19,7 @@ launch_buttons:
 # See https://jupyterbook.org/content/execute.html
 execute:
   execute_notebooks: "cache"
+  timeout: 15_000
 
 # Define the name of the latex output file for PDF builds
 latex:

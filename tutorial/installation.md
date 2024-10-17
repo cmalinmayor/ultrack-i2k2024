@@ -1,4 +1,4 @@
-# Python setup & napari installation
+# Environment setup
 
 ```{tip}
 If you have any issues with installation, please feel free to [open a github issue](https://github.com/royerlab/ultrack-i2k2024/issues/new) and
@@ -106,17 +106,9 @@ as well and you can skip to the next section.
     ```
 
     If you successfully activated the environment, you should now see
-   `(ultrack-i2k2024` to the left of your command prompt.
+   `(ultrack-i2k2024)` to the left of your command prompt.
 
-4. Install the additional workshop dependencies with the commands below.  
-
-   For the plugin template:
-
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-5. Test that your notebook installation is working. We will be using notebooks
+4. Test that your notebook installation is working. We will be using notebooks
    for interactive analysis. Enter the command below and it should launch the
    `jupyter lab` application in a web browser. Once you've confirmed it
    launches, close the web browser and press `ctrl+c` in the terminal window to
@@ -126,7 +118,7 @@ as well and you can skip to the next section.
     jupyter lab
     ```
 
-6. Test your napari installation. Enter the command below and an empty napari
+5. Test your napari installation. Enter the command below and an empty napari
    viewer should open. You can close the window after it opens. Please note that
    it takes a bit of extra time to launch napari the first time.
     
