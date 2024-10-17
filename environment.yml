@@ -1,12 +1,26 @@
-name: workshop
+name: ultrack-i2k2024
 channels:
+  - gurobi
+  - pytorch
   - conda-forge
+  - defaults
 dependencies:
+  - python=3.12
+  - pytorch
   - jupyterlab
   - jupytext
-  - matplotlib
-  - napari
+  - jupyterlab-myst
+  - jupyter-book
+  - notebook
+  - cellpose
+  - coin-or-cbc
+  - gurobi
+  - jupyter
+  - nodejs
   - pip
+  - pyqt
+  - higra
   - pip:
-    - jupyter-book
-    - napari-animation
+    - py-ctcmetrics
+    - napari
+    - ultrack

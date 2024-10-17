@@ -1,3 +1,14 @@
 .DS_Store
 .ipynb_checkpoints
-napari-workshops/_build/
+tutorial/_build/
+
+# data files
+*.zip
+*.tif
+*.csv
+*_track.txt
+
+# ultrack files
+metadata.toml
+*.lock
+data.db

@@ -4,7 +4,7 @@ name: Deploy static content to Pages
 on:
   # Runs on pushes targeting the default branch
   push:
-    branches: ["main"]
+    branches: ["main", "ultrack"]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -33,7 +33,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       - name: qt libs
         uses: tlambert03/setup-qt-libs@v1
       - name: Setup Pages
@@ -43,11 +43,11 @@ jobs:
         with:
           run: |
             pip install -r requirements.txt
-            jupyter book build napari-workshops
+            jupyter book build tutorial
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'napari-workshops/_build/html'
+          path: 'tutorial/_build/html'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
