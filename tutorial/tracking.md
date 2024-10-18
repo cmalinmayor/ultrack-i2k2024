@@ -16,7 +16,7 @@ kernelspec:
 
 +++
 
-This tutorial shows Ultrack's multiple hypotheses tracking capabilities. 
+This tutorial shows Ultrack's multiple hypotheses tracking capabilities in a 2D cell tracking example due to the tutorial time constraints. The same principles apply to 3D tracking.
 
 We will start with a simple classical image processing solution with ultrack and tracking cells for image intensities directly. Then, we will progress to using Cellpose and finally use multiple Cellpose segmentations to improve tracking performance without training our own segmentation model showcasing the improvement when a single segmentation isn't good enough.
 
@@ -35,22 +35,26 @@ The dataset will be used for demonstrating the segmentation and tracking workflo
 
 ## Import libraries
 
-Import the libraries needed for reading images, processing them, cell segmentation, tracking, and performance metrics. 
+Import the libraries needed for reading images, processing them, cell segmentation, tracking, and performance metrics.
 
-
-```{code-cell} python
+```{code-cell} ipython3
 from pathlib import Path
 from typing import Dict
 
 import pandas as pd
 import numpy as np
 import napari
+import scipy.ndimage as ndi
 
 from ctc_metrics import evaluate_sequence
 from dask.array.image import imread
 from napari.utils import nbscreenshot
 from numpy.typing import ArrayLike
 from rich import print
+from skimage import filters
+from skimage.segmentation import watershed
+from skimage.morphology import h_maxima
+from edt import edt
 
 from ultrack import Tracker, MainConfig
 from ultrack.imgproc import normalize, Cellpose
@@ -60,7 +64,11 @@ from ultrack.utils import labels_to_contours
 
 ## Setting up napari viewer
 
-```{code-cell} python
+We use napari to visualize the data and the results, Ultrack can also export to other formats such as TrackMate, so you can use your preferred visualization tool in your workflow.
+
+We resize the viewer so the screenshots are consistent between runs.
+
+```{code-cell} ipython3
 viewer = napari.Viewer()
 viewer.window.resize(1800, 1200)
 
@@ -70,54 +78,162 @@ def screenshot() -> None:
 
 ## Data loading
 
-Load the Fluo-C2DL-Huh7 dataset.
+Load the Fluo-C2DL-Huh7 frames as a (T, Y, X) array.
 
-```{code-cell} python
-dataset = "01"
+```{code-cell} ipython3
+dataset = "02"
 data_path = Path("Fluo-C2DL-Huh7") / dataset
-image = imread(str(data_path / "*.tif"))
+image = np.asarray(imread(str(data_path / "*.tif")))
 
-viewer.add_image(image)
+viewer.add_image(image, colormap="magma")
 screenshot()
 ```
 
-## Configuration
+## Example of classical segmentation without Ultrack
 
-We'll use the same configuration as in the previous example, except for `config.segmentation_config.min_frontier` which had its value decreased.
+Classical tracking usually involves segmenting the cells and then tracking them using the segmentation as input.
 
-The `min_frontier` merges regions with an average contour lower than the provided value.
-Since the contours are combined by averaging, the previous value of 0.1 removed relevant segments from the candidate hypotheses.
+Here we start with a simple segmentation using a Gaussian filter to remove noise, a manually set threshold to create a binary mask, and a watershed transform to separate the cells.
 
-As a reminder, the configuration parameters documentation can be found [here](https://github.com/royerlab/ultrack/blob/main/ultrack/config/README.md).
+```{code-cell} ipython3
+blurred_image = filters.gaussian(image, (0, 5, 5))
+layer = viewer.add_image(blurred_image, colormap="green", blending="additive")
+screenshot()
+layer.visible = False
+```
+
+Manual thresholding to create a binary mask. Value of 0.1 was chosen by visual inspection.
+
+```{code-cell} ipython3
+threshold_foreground = blurred_image > 0.1
+layer = viewer.add_labels(threshold_foreground)
+screenshot()
+layer.visible = False
+```
+
+We use the watershed transform to separate the cells, using the distance transform because the cells are somewhat convex, the tricky part is setting the `h` parameter, which controls the minimum depth of the minima. The more we increase `h`, the more we merge regions, resulting in fewer segments.
+
+```{admonition} Interaction
+Play with the `h` parameter to see how it affects the segmentation.
+```
 
 
-```{code-cell} python
+
+```{code-cell} ipython3
+h = 10
+
+def ws_from_h_minima(mask: np.ndarray) -> np.ndarray:
+    dist = edt(mask)
+    maximas = h_maxima(dist, h=h)
+    markers, _ = ndi.label(maximas)
+    return watershed(-dist, markers=markers, mask=mask)
+
+ws_segm = np.zeros_like(threshold_foreground, dtype=np.int16)
+
+array_apply(
+    threshold_foreground,
+    func=ws_from_h_minima,
+    # blurred_image,
+    # func=lambda mask, img: watershed(-img, mask=mask),
+    out_array=ws_segm,
+)
+layer = viewer.add_labels(ws_segm, name=f"watershed h={h}")
+screenshot()
+layer.visible = False
+```
+
+This is not only exclusive to watershed, but also to other segmentation algorithms, have parameters which might be hard to set and vary within your dataset, for example if they are related to cell size, image quality, or other factors.
+
++++
+
+## Ultracking & segmentation from image intensities directly
+
+In this section, we will show how the temporal information of your data can be used to bypass some of the segmentation parameters, letting you choose the segmentations that are most consistent over time.
+
+Ultrack main interface is the `Tracker` class, which exposes a `track` method that computes the tracks given the input data.
+
+The `Tracker` class is configured with a `MainConfig` object, which contains the parameters for the segmentation, linking, and tracking steps, which will setup next and its documentation can be found [here](https://royerlab.github.io/ultrack/configuration.html).
+
+### Configuration
+
+```{code-cell} ipython3
+print(MainConfig())
+```
+
+The minimum are is an important parameter, otherwise we will have too many hypotheses to track, we can easily find this information from the previous segmentation.
+
+```{admonition} Interaction
+Select a cell and a time point in napari, edit the cell_id and cell_time_point variables below, and run the cell to find the size of the cell.
+```
+
+```{code-cell} ipython3
+:tags: [no-execute]
+
+cell_id = 61
+cell_time_point = 21
+
+size = (viewer.layers["watershed h=10"].data[cell_time_point] == cell_id).sum()
+size
+
+```
+
+Next we create the configuration object and set the segmentation parameters, we will come back to the tracking parameters later, most parameter are interpretable together with the imaging data, with the exception of the tracking weights.
+
+
+```{admonition} Interaction
+Edit the `min_area` parameter with the `size` variable computed above.
+
+Update the `max_distance` parameter with a guessestimate from napari, error on the side of overestimating.
+```
+
+```{code-cell} ipython3
 config = MainConfig()
 
 # Candidate segmentation parameters
 config.segmentation_config.n_workers = 7
-config.segmentation_config.min_area = 2500
-config.segmentation_config.min_frontier = 0.05  # NOTE: this parameter is not the same as in intro.ipynb
+config.segmentation_config.min_area = 800  # UPDATE: use `size` variable
 
-# Setting the maximum number of candidate neighbors and maximum spatial distance between cells
-config.linking_config.max_neighbors = 5
-config.linking_config.max_distance = 100
-config.linking_config.n_workers = 7
+# Other important parameters depending on your data
+# config.segmentation_config.max_area = ...
 
-# Adding absurd weight to division because there's no diving cell
-config.tracking_config.division_weight = -100
-# Very few tracks enter/leave the field of view, increasing penalization
-config.tracking_config.disappear_weight = -1
-config.tracking_config.appear_weight = -1
+# maximum movement between frames
+config.linking_config.max_distance = 100  # UPDATE: update inspecting the moving cells.
+
+# UPDATE: we will come back here to select these parameters
+# Tracking penalization parameters
+config.tracking_config.disappear_weight = -0.5
+config.tracking_config.appear_weight = -0.5
+config.tracking_config.division_weight = -1
 
 print(config)
 ```
 
+With the configuration we create our tracker object, and using the previously computed foreground and blurred images which provide cues for the cell boundaries, we can segment and track the cells.
+
+```{code-cell} ipython3
+tracker = Tracker(config)
+
+tracker.track(foreground=threshold_foreground, contours=-blurred_image, overwrite=True)
+
+classic_segm = tracker.to_zarr()
+
+layer = viewer.add_labels(classic_segm)
+screenshot()
+layer.visible = False
+```
+
+```{admonition} Interaction
+Try changing ultrack's parameters and see how it affects the segmentation and tracking.
+Feel free to ask for help understanding how they affect the results.
+```
+
+While this approach provides a good starting point and highlights how classical pipelines can be improved with Ultrack, it isn't making use of existing pre-trained models, which can provide better segmentations and are often available for 2D data. So in the next section, we will use Cellpose to segment the cells and track them.
+
 ## Cellpose segmentation
 
-The same function as `intro.ipynb` to segment cells within each frame.
+```{code-cell} ipython3
+:tags: [remove-output]
 
-```{code-cell} python
 cellpose = Cellpose(model_type="cyto2", gpu=True)
 
 def predict(frame: ArrayLike, gamma: float) -> ArrayLike:
@@ -125,12 +241,38 @@ def predict(frame: ArrayLike, gamma: float) -> ArrayLike:
     return cellpose(norm_frame, tile=False, normalize=False, diameter=75.0)
 ```
 
+```{code-cell} ipython3
+gamma = 1.0
+
+cellpose_labels = np.zeros_like(image, dtype=np.int32)
+array_apply(
+    image,
+    out_array=cellpose_labels,
+    func=predict,
+    gamma=gamma,
+)
+
+viewer.add_labels(cellpose_labels, name=f"cellpose gamma={gamma}", visible=False)
+
+tracker.track(labels=cellpose_labels, overwrite=True)
+
+tracks_df, graph = tracker.to_tracks_layer()
+segm = tracker.to_zarr()
+
+tracks_layer = viewer.add_tracks(tracks_df[["track_id", "t", "y", "x"]])
+lb_layer = viewer.add_labels(segm, name=f"labels gamma={gamma}")
+
+screenshot()
+
+tracks_layer.visible = False
+lb_layer.visible=False
+```
+
 ## Metrics
 
 We define a helper function to evaluate tracking score using [Cell Tracking Challenge](celltrackingchallenge.net)'s metrics and annotations using the [ctc-metrics](https://github.com/CellTrackingChallenge/py-ctcmetrics).
 
-
-```{code-cell} python
+```{code-cell} ipython3
 def score(output_path: Path) -> Dict:
     gt_path = data_path.parent / f"{data_path.name}_GT"
     return evaluate_sequence(
@@ -144,7 +286,7 @@ def score(output_path: Path) -> Dict:
 
 Here, we evaluate the segmentation and tracking given multiple values of `gamma`, used on the normalization step before the Cellpose prediction.
 
-```{code-cell} python
+```{code-cell} ipython3
 all_labels = []
 metrics = []
 gammas = [0.1, 0.25, 0.5, 1]
@@ -194,17 +336,17 @@ The foreground map is the maximum value between the binary masks of each label.
 
 The contour map is the average contour map of the binary contours of each label.
 
-```{code-cell} python
+```{code-cell} ipython3
 foreground, contours = labels_to_contours(all_labels, sigma=sigma)
 ```
 
-```{code-cell} python
+```{code-cell} ipython3
 layer = viewer.add_labels(foreground.astype(int))
 screenshot()
 layer.visible = False
 ```
 
-```{code-cell} python
+```{code-cell} ipython3
 layer = viewer.add_image(contours)
 screenshot()
 layer.visible = False
@@ -214,7 +356,7 @@ layer.visible = False
 
 Run the tracking algorithm on the provided configuration, and combined foreground and contours.
 
-```{code-cell} python
+```{code-cell} ipython3
 tracker.track(
    foreground=foreground,
    contours=contours,
@@ -224,16 +366,18 @@ tracker.track(
 
 Compute metrics for the multiple hypotheses tracking and compare the scores of the different approaches.
 
-```{code-cell} python
+```{code-cell} ipython3
 output_path = Path(f"{dataset}_COMBINED") / "TRA"
 tracker.to_ctc(output_path, overwrite=True)
 
 metric = score(output_path)
+metric["gamma"] = "all"
 metrics.append(metric)
 
 df = pd.DataFrame(metrics)
 df.to_csv(f"{dataset}_scores.csv", index=False)
-df
+
+df.sort_values("TRA", ascending=False)
 ```
 
 ## Exporting and visualization
@@ -242,7 +386,7 @@ All intermediate tracking data is stored on disk and must be exported to your pr
 
 Here the resulting tracks are exported to a pandas data frame, a napari friendly format, and zarr for the segmentation.
 
-```{code-cell} python
+```{code-cell} ipython3
 tracks_df, graph = tracker.to_tracks_layer()
 tracks_df.to_csv(f"{dataset}_tracks.csv", index=False)
 
@@ -257,6 +401,8 @@ viewer.add_tracks(
     visible=True,
 )
 
-viewer.add_labels(segments, name="segments").contour = 2
+viewer.add_labels(segments, name="segments", opacity=0.5)
+viewer.dims.set_point(0, 29)
+
 screenshot()
 ```
