@@ -1,6 +1,7 @@
 .DS_Store
 .ipynb_checkpoints
 tutorial/_build/
+tutorial/*.ipynb
 
 # data files
 *.zip

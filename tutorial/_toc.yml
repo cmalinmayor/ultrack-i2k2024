@@ -6,3 +6,4 @@ root: index
 chapters:
   - file: installation.md
   - file: tracking.md
+  - file: color_tracking.md
