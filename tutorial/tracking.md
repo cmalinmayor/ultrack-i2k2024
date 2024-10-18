@@ -86,6 +86,7 @@ data_path = Path("Fluo-C2DL-Huh7") / dataset
 image = np.asarray(imread(str(data_path / "*.tif")))
 
 viewer.add_image(image, colormap="magma")
+viewer.dims.set_point(0, 28)
 screenshot()
 ```
 
@@ -116,8 +117,6 @@ We use the watershed transform to separate the cells, using the distance transfo
 ```{admonition} Interaction
 Play with the `h` parameter to see how it affects the segmentation.
 ```
-
-
 
 ```{code-cell} ipython3
 h = 10
@@ -174,11 +173,9 @@ cell_time_point = 21
 
 size = (viewer.layers["watershed h=10"].data[cell_time_point] == cell_id).sum()
 size
-
 ```
 
 Next we create the configuration object and set the segmentation parameters, we will come back to the tracking parameters later, most parameter are interpretable together with the imaging data, with the exception of the tracking weights.
-
 
 ```{admonition} Interaction
 Edit the `min_area` parameter with the `size` variable computed above.
@@ -191,7 +188,7 @@ config = MainConfig()
 
 # Candidate segmentation parameters
 config.segmentation_config.n_workers = 7
-config.segmentation_config.min_area = 800  # UPDATE: use `size` variable
+config.segmentation_config.min_area = 2500  # UPDATE: use `size` variable
 
 # Other important parameters depending on your data
 # config.segmentation_config.max_area = ...
@@ -211,6 +208,8 @@ print(config)
 With the configuration we create our tracker object, and using the previously computed foreground and blurred images which provide cues for the cell boundaries, we can segment and track the cells.
 
 ```{code-cell} ipython3
+:tags: [remove-output]
+
 tracker = Tracker(config)
 
 tracker.track(foreground=threshold_foreground, contours=-blurred_image, overwrite=True)
@@ -227,9 +226,18 @@ Try changing ultrack's parameters and see how it affects the segmentation and tr
 Feel free to ask for help understanding how they affect the results.
 ```
 
-While this approach provides a good starting point and highlights how classical pipelines can be improved with Ultrack, it isn't making use of existing pre-trained models, which can provide better segmentations and are often available for 2D data. So in the next section, we will use Cellpose to segment the cells and track them.
+```{warning}
+Don't forget the `overwrite=True` when tracking.
+Ultrack was designed to track datasets larger than memory so by default it stores intermediate results on disk.
+```
+
+While this approach provides a good starting point and highlights how classical pipelines can be improved with Ultrack, it isn't making use of existing pre-trained models, which can provide better segmentations and are often available for 2D data. So in the next section, we will use [Cellpose](https://github.com/MouseLand/cellpose) to segment the cells and track them.
 
 ## Cellpose segmentation
+
+First, we define a function to predict the segmentation using Cellpose and the `cyto2` model.
+The `diamond` parameter is set to 75.0, which is a good starting point for this dataset.
+We also disable the normalization step in Cellpose, as we are doing our own normalization using the `gamma` parameter for contrast adjustment.
 
 ```{code-cell} ipython3
 :tags: [remove-output]
@@ -240,6 +248,8 @@ def predict(frame: ArrayLike, gamma: float) -> ArrayLike:
     norm_frame = normalize(np.asarray(frame), gamma=gamma)
     return cellpose(norm_frame, tile=False, normalize=False, diameter=75.0)
 ```
+
+With the `predict` function defined, we apply it to all frames.
 
 ```{code-cell} ipython3
 gamma = 1.0
@@ -253,8 +263,22 @@ array_apply(
 )
 
 viewer.add_labels(cellpose_labels, name=f"cellpose gamma={gamma}", visible=False)
+```
 
-tracker.track(labels=cellpose_labels, overwrite=True)
+Next, we use the `labels` parameter to track the cells from the Cellpose segmentation.
+
+Because we are using labels we want to merge regions with small frontiers (no contours within segments) removing them from the hierarchy.
+
+```{code-cell} ipython3
+:tags: [remove-output]
+
+sigma = 5.0  # optional sigma parameter for smoothing labels' contours
+
+config.segmentation_config.min_frontier = 0.1   # adding min. frontier to merge regions within segments
+
+tracker = Tracker(config)
+
+tracker.track(labels=cellpose_labels, sigma=sigma, overwrite=True)
 
 tracks_df, graph = tracker.to_tracks_layer()
 segm = tracker.to_zarr()
@@ -268,9 +292,14 @@ tracks_layer.visible = False
 lb_layer.visible=False
 ```
 
+This approach provides a better segmentation than the classical approach, but it still has limitations, as the segmentation is not perfect, especially in dimmer cells or cells with low contrast.
+
+Next, we will evaluate if tuning the `gamma` parameter can improve Cellpose's segmentation and therefore our tracking results.
+
 ## Metrics
 
-We define a helper function to evaluate tracking score using [Cell Tracking Challenge](celltrackingchallenge.net)'s metrics and annotations using the [ctc-metrics](https://github.com/CellTrackingChallenge/py-ctcmetrics).
+Because this dataset is part of the [Cell Tracking Challenge (CTC)](celltrackingchallenge.net), we can evaluate the tracking performance using the provided ground truth annotations.
+For this, we define a helper function to evaluate tracking score CTC's tracking metric (TRA) with the [ctc-metrics](https://github.com/CellTrackingChallenge/py-ctcmetrics) package.
 
 ```{code-cell} ipython3
 def score(output_path: Path) -> Dict:
@@ -278,25 +307,26 @@ def score(output_path: Path) -> Dict:
     return evaluate_sequence(
         str(output_path.absolute()),
         str(gt_path.absolute()),
-        metrics=["TRA", "CHOTA"],
+        metrics=["TRA"],
     )
 ```
 
-## Parameter Search
+## Parameter (gamma) Search
 
-Here, we evaluate the segmentation and tracking given multiple values of `gamma`, used on the normalization step before the Cellpose prediction.
+We will evaluate the segmentation and tracking performance using different values of `gamma` to adjust the contrast of the input images to Cellpose.
+Smaller `gamma` decreases the difference in brighter regions, highlighting dimmer cells at the cost of saturating the brighter cells.
 
 ```{code-cell} ipython3
+:tags: [remove-output]
+
+gammas = [0.1, 0.25, 0.5, 1]
 all_labels = []
 metrics = []
-gammas = [0.1, 0.25, 0.5, 1]
-sigma = 5.0
 
-tracker = Tracker(config)
-
+# iterating over different gamma values
 for gamma in gammas:
 
-    # cellpose prediction
+    # Cellpose prediction
     cellpose_labels = np.zeros_like(image, dtype=np.int32)
     array_apply(
         image,
@@ -316,25 +346,30 @@ for gamma in gammas:
         overwrite=True
     )
 
-    # exporting to CTC format
+    # exporting to CTC format for evaluation
     output_path = data_path.parent / Path(name.upper()) / "TRA"
     tracker.to_ctc(output_path, overwrite=True)
 
-    # computing tracking score
+    # computing tracking score and storing it
     metric = score(output_path)
     metric["gamma"] = gamma
     metrics.append(metric)
-
-print(metrics)
 ```
+
+```{code-cell} ipython3
+:tags: [remove-input]
+# printing the results
+pd.DataFrame(metrics).sort_values("TRA", ascending=False)
+```
+
+Here, we can see `gamma=0.5` provides the best tracking performance.
+However, when inspecting visually we can see that some of the mistakes are complementary between the different segmentations, so we can combine them to obtain an improve the tracking performance.
 
 ## Combined contours and foreground
 
-The `labels_to_contours` combines multiple segmentation labels into a single foreground and contour map.
+Because Ultrack operates on the contours of the segmentation, combine the segmentations labels through their contour and foreground maps.
 
-The foreground map is the maximum value between the binary masks of each label.
-
-The contour map is the average contour map of the binary contours of each label.
+To do that, we provide the `labels_to_contours`, where the contours are the average of the binary contours of each label, and the foreground is the maximum value between the binary masks of each label.
 
 ```{code-cell} ipython3
 foreground, contours = labels_to_contours(all_labels, sigma=sigma)
@@ -354,9 +389,10 @@ layer.visible = False
 
 ## Tracking
 
-Run the tracking algorithm on the provided configuration, and combined foreground and contours.
+Once we have the combined contours and foreground, the process is the same as every before.
 
 ```{code-cell} ipython3
+:tags: [remove-output]
 tracker.track(
    foreground=foreground,
    contours=contours,
@@ -364,7 +400,7 @@ tracker.track(
 )
 ```
 
-Compute metrics for the multiple hypotheses tracking and compare the scores of the different approaches.
+Once again, we compute metrics for the multiple hypotheses tracking and compare the scores of the different approaches.
 
 ```{code-cell} ipython3
 output_path = Path(f"{dataset}_COMBINED") / "TRA"
@@ -380,11 +416,13 @@ df.to_csv(f"{dataset}_scores.csv", index=False)
 df.sort_values("TRA", ascending=False)
 ```
 
+The combined segmentation provides an improved tracking performance, even when compared to the best individual segmentation, showcasing the benefits of using multiple segmentations to improve tracking results.
+
+This could be further adapted to other parameters or combining different segmentation algorithms to obtain a larger diversity of segmentations.
+
 ## Exporting and visualization
 
-All intermediate tracking data is stored on disk and must be exported to your preferred format this is what enables Ultrack to process multi-terabyte datasets.
-
-Here the resulting tracks are exported to a pandas data frame, a napari friendly format, and zarr for the segmentation.
+To further assess our results or downstream analysis, we can export the tracks and segmentations to a CSV file and a zarr file, respectively, for further analysis and visualization.
 
 ```{code-cell} ipython3
 tracks_df, graph = tracker.to_tracks_layer()
@@ -402,7 +440,6 @@ viewer.add_tracks(
 )
 
 viewer.add_labels(segments, name="segments", opacity=0.5)
-viewer.dims.set_point(0, 29)
 
 screenshot()
 ```
