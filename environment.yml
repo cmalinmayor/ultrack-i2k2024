@@ -18,10 +18,9 @@ dependencies:
   - jupyter
   - nodejs
   - pip
-  - pyqt
   - higra
   - pip:
     - py-ctcmetrics
-    - napari
-    - git+https://github.com/royerlab/ultrack
+    - napari[all]
+    - ultrack
     - napari-plot-profile
