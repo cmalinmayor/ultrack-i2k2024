@@ -358,6 +358,7 @@ for gamma in gammas:
 
 ```{code-cell} ipython3
 :tags: [remove-input]
+
 # printing the results
 pd.DataFrame(metrics).sort_values("TRA", ascending=False)
 ```
@@ -393,6 +394,7 @@ Once we have the combined contours and foreground, the process is the same as ev
 
 ```{code-cell} ipython3
 :tags: [remove-output]
+
 tracker.track(
    foreground=foreground,
    contours=contours,
