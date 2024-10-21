@@ -87,11 +87,17 @@ as well and you can skip to the bottom of this page to set up the conda environm
 
 ## Setting up your environment
 
-1. Open your terminal.
+0. Open your terminal.
    - **Windows**: Open the "miniforge prompt" from your start menu
    - **Mac OS**: Open Terminal (you can search for it in spotlight - `cmd` +
      `space`)
    - **Linux**: Open your terminal application
+
+1. Download the [workshop
+repository](https://github.com/royerlab/ultrack-i2k2024) and move into the downloaded folder by entering the following command:
+   ```
+   cd ultrack-i2k2024
+   ```
 
 2. We use an environment to encapsulate the Python tools used for this workshop.
    This ensures that the requirements for this workshop do not interfere with
@@ -121,7 +127,7 @@ as well and you can skip to the bottom of this page to set up the conda environm
     jupyter lab
     ```
 
-5. Test your napari installation. Enter the command below and an empty napari
+5. Test your napari installation. Enter the command below in the terminal and an empty napari
    viewer should open. You can close the window after it opens. Please note that
    it takes a bit of extra time to launch napari the first time.
     
