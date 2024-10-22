@@ -159,7 +159,7 @@ The `Tracker` class is configured with a `MainConfig` object, which contains the
 print(MainConfig())
 ```
 
-The minimum are is an important parameter, otherwise we will have too many hypotheses to track, we can easily find this information from the previous segmentation.
+The minimum area is an important parameter, otherwise we will have too many hypotheses to track, we can easily find this information from the previous segmentation.
 
 ```{admonition} Interaction
 Select a cell and a time point in napari, edit the cell_id and cell_time_point variables below, and run the cell to find the size of the cell.
@@ -236,7 +236,7 @@ While this approach provides a good starting point and highlights how classical 
 ## Cellpose segmentation
 
 First, we define a function to predict the segmentation using Cellpose and the `cyto2` model.
-The `diamond` parameter is set to 75.0, which is a good starting point for this dataset.
+The `diameter` parameter is set to 75.0, which is a good starting point for this dataset.
 We also disable the normalization step in Cellpose, as we are doing our own normalization using the `gamma` parameter for contrast adjustment.
 
 ```{code-cell} ipython3
