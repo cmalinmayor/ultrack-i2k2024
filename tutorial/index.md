@@ -28,6 +28,12 @@ There are two goals with this tutorial:
 1. Introduce the participants to [ultrack package](https://github.com/royerlab/ultrack) and its capabilities.
 2. Show that there are other ways of segmentating and tracking cells rather than training by annotating thousands of cells and applying deep learning models. Pre-trained models and classical algorithms are our friends and can be used to solve many problems.
 
+## Notes
+
+```{warning}
+The notebooks are provided as Markdown files (`.md`) to open them as Jupyter Notebooks, you must right click on the file on your Jupyter interface and select `Open with` -> `Notebook`.
+```
+
 ## Instructors
 
 The instructors for this workshop are:
