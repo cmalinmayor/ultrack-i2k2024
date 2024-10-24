@@ -12,19 +12,19 @@ kernelspec:
   name: python3
 ---
 
-# 2D cell tracking with multiple hypotheses
+# 2D Cell Tracking with Multiple Hypotheses
 
 +++
 
-This tutorial shows Ultrack's multiple hypotheses tracking capabilities in a 2D cell tracking example due to the tutorial time constraints. The same principles apply to 3D tracking.
+This tutorial demonstrates Ultrack's multiple hypotheses tracking capabilities in a 2D cell tracking example due to time constraints. The same principles apply to 3D tracking.
 
-We will start with a simple classical image processing solution with ultrack and tracking cells for image intensities directly. Then, we will progress to using Cellpose and finally use multiple Cellpose segmentations to improve tracking performance without training our own segmentation model showcasing the improvement when a single segmentation isn't good enough.
+We will start with a simple classical image processing solution using Ultrack to track cells based on image intensities directly. Then, we will progress to using Cellpose and finally use multiple Cellpose segmentations to improve tracking performance without training our own segmentation model, showcasing the improvement when a single segmentation isn't good enough.
 
-## Download data
+## Download Data
 
-Download the Fluo-C2DL-Huh7 dataset from the [Cell Tracking Challenge](celltrackingchallenge.net), which contains fluorescence microscopy images for cell tracking.
+Download the Fluo-C2DL-Huh7 dataset from the [Cell Tracking Challenge](https://celltrackingchallenge.net), which contains fluorescence microscopy images for cell tracking.
 
-The dataset will be used for demonstrating the segmentation and tracking workflow.
+The dataset will be used to demonstrate the segmentation and tracking workflow.
 
 ```{code-cell} ipython3
 :tags: [remove-output]
@@ -103,7 +103,7 @@ screenshot()
 layer.visible = False
 ```
 
-Manual thresholding to create a binary mask. Value of 0.1 was chosen by visual inspection.
+We apply a manual thresholding to create a binary mask. The value of 0.1 was chosen by visual inspection.
 
 ```{code-cell} ipython3
 threshold_foreground = blurred_image > 0.1
