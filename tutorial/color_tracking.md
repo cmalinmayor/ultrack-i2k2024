@@ -59,7 +59,6 @@ def screenshot() -> None:
 We will load the data and display in the viewer as an RGB image.
 
 ```{code-cell} ipython3
-
 image = imread("multi-color-cytoplasm.tif")
 print("Image array shape", image.shape)
 

@@ -12,6 +12,7 @@ dependencies:
   - jupyterlab-myst
   - jupyter-book
   - notebook
+  - postgresql
   - cellpose
   - coin-or-cbc
   - gurobi
