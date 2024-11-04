@@ -213,12 +213,64 @@ With the configuration we create our tracker object, and using the previously co
 tracker = Tracker(config)
 
 tracker.track(foreground=threshold_foreground, contours=-blurred_image, overwrite=True)
+```
 
-classic_segm = tracker.to_zarr()
+```{code-cell} ipython3
+from motile_plugin.data_model import SolutionTracks
+from motile_plugin.data_views import TracksViewer, TreeWidget   
+from motile_toolbox.candidate_graph import NodeAttr
+import numpy as np
 
-layer = viewer.add_labels(classic_segm)
-screenshot()
-layer.visible = False
+# define helper functions to view results with motile plugin tracks view
+def add_track_view(viewer: napari.Viewer):
+    """Add the Tree Widget and the Results List dock widgets. If you want to edit,
+    You can also add the EditWidget and/or the MainApp widget, which is all the 
+    widgets combined.
+
+    Args:
+        viewer (napari.Viewer): The napari viweer
+    """
+    tracksviewer = TracksViewer.get_instance(viewer)
+    viewer.window.add_dock_widget(TreeWidget(viewer), area="bottom")
+    viewer.window.add_dock_widget(tracksviewer.tracks_list)
+
+def add_tracks(viewer: napari.Viewer, tracker: Tracker, name: str):
+    """Add a solution set of tracks to the tracks viewer results list
+
+    Args:
+        viewer (napari.Viewer): the napari viewer
+        tracker (ultrack.Tracker): the ultrack tracker containing the solution
+        name (str): the display name of the solution tracks
+    """
+
+    nxgraph = tracker.to_networkx()
+    segm = tracker.to_zarr()
+
+    # add/modify attributes to fit motile viewer assumptions
+    for node in nxgraph.nodes:
+        # seg ids must be int and match the segmentation
+        nxgraph.nodes[node][NodeAttr.SEG_ID.value] = int(nxgraph.nodes[node]['track_id'])
+        # track ids must be ints
+        nxgraph.nodes[node][NodeAttr.TRACK_ID.value] = int(nxgraph.nodes[node]['track_id'])
+    # create tracks object
+    tracks = SolutionTracks(
+        nxgraph,
+        # extra dimension added to segmentation for historical reasons: this will
+        # soon be unnecessary
+        segmentation=np.expand_dims(segm, 1).astype(np.uint16),
+        pos_attr=("y", "x"),
+        time_attr="t"
+    )
+    tracksviewer = TracksViewer.get_instance(viewer)
+    tracksviewer.tracks_list.add_tracks(tracks, name)
+```
+
+```{code-cell} ipython3
+# only run this once 
+add_track_view(viewer)
+
+# run this for each solution you want to view
+add_tracks(viewer, tracker, "classic_segm")
 ```
 
 ```{admonition} Interaction
